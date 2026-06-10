@@ -1,4 +1,4 @@
-# ENV-Exporter
+# EMS-Exporter
 
 Prometheus SNMP Exporter for the **NS-705 SNMP Server Room Controller** — an Environmental Monitoring System (EMS) that monitors temperature, humidity, smoke, power inputs, and triggers alarms for server room environments.
 
@@ -26,13 +26,13 @@ Prometheus SNMP Exporter for the **NS-705 SNMP Server Room Controller** — an E
 
 | Property | Value |
 |---|---|
-| **Model** | NS-705 SNMP Server Room Controller |
+| **Model** | EasyNet NS-705B |
 | **Manufacturer** | Pardik (پاردیک) — Pardis Engineering Co. |
 | **Purpose** | Environmental monitoring for server rooms and data centers |
 | **Protocol** | SNMP v1 |
 | **Community** | public |
 | **IP Address** | 192.168.X.X |
-| **Web Interface** | http://192.168.X.X (Deafult Username/Password: admin/admin) |
+| **Web Interface** | http://192.168.X.X (Default Username/Password: admin/admin) |
 
 ### Key Features
 
@@ -60,19 +60,27 @@ See [resources/](resources/) for the full product datasheet (`NS-705_SNMP Server
 
 The NS-705 exposes the following sensors via SNMP, currently monitored in PRTG under **ROOT → Local Probe → Environmental Parameters** (192.168.X.X):
 
-| # | Sensor Name | PRTG Value | Type | Description |
+| # | Sensor Name | OID | PRTG Value | Description |
 |---|---|---|---|---|
-| 1 | Temp 1 (Rack1-Front) | 29 °C | snmpcustom | Temperature at Rack 1 front |
-| 2 | Temp 2 (Rack2-Rear) | 32 °C | snmpcustom | Temperature at Rack 2 rear |
-| 3 | Temp 3 (Rack3-Rear) | 32 °C | snmpcustom | Temperature at Rack 3 rear |
-| 4 | Temp 4 (Rack5-Front) | 26 °C | snmpcustom | Temperature at Rack 5 front |
-| 5 | THC | 26 (composite) | snmpcustom | Temperature-Humidity Composite sensor |
-| 6 | Smoke | 0 (normal) | snmpcustom | Smoke detector (0 = no smoke) |
-| 7 | Power 1 | 1 (active) | snmpcustom | Main power input status |
-| 8 | Power 2 (Input Generator) | 0 (inactive) | snmpcustom | Generator power input status |
-| 9 | Power Outage | Paused | xmlexe | Power outage detection (paused in PRTG) |
+| 1 | Temp 1 (Rack1-Front) | `1.3.6.1.4.1.61.1.1.2.1.1.87` | 28 °C | Temperature at Rack 1 front |
+| 2 | Temp 2 (Rack2-Rear) | `1.3.6.1.4.1.61.1.1.2.1.1.88` | 31 °C | Temperature at Rack 2 rear |
+| 3 | Temp 3 (Rack3-Rear) | `1.3.6.1.4.1.61.1.1.2.1.1.89` | 32 °C | Temperature at Rack 3 rear |
+| 4 | Temp 4 (Rack5-Front) | `1.3.6.1.4.1.61.1.1.2.1.1.90` | 25 °C | Temperature at Rack 5 front |
+| 5 | THC | `1.3.6.1.4.1.61.1.1.2.1.1.91` | 26 | Temperature-Humidity Composite sensor |
+| 6 | Smoke | `1.3.6.1.4.1.61.1.1.2.1.1.83` | 0 (normal) | Smoke detector (0 = no smoke) |
+| 7 | Power 1 | `1.3.6.1.4.1.61.1.1.2.1.1.84` | 1 (active) | Main power input status |
+| 8 | Power 2 (Input Generator) | `1.3.6.1.4.1.61.1.1.2.1.1.85` | 0 (inactive) | Generator power input status |
+| 9 | Input Zone 1 | `1.3.6.1.4.1.61.1.1.2.1.1.81` | 0 | External sensor zone 1 |
+| 10 | Input Zone 2 | `1.3.6.1.4.1.61.1.1.2.1.1.82` | 0 | External sensor zone 2 |
 
-All sensors use `snmpcustom` (raw OID) or `xmlexe` sensor type in PRTG.
+All PRTG sensors use `snmpcustom` (raw OID) type. OIDs discovered from PRTG at `https://mon.ibagher.ir` (device: Environmental Parameters, objid 5185).
+
+### Hardware Notes
+
+- **Enterprise OID:** `1.3.6.1.4.1.61` (registered to Merit Network)
+- **MAC OUI:** `00:FE:A7` (private assignment)
+- **Web server:** lwIP/uIP-based embedded stack running on a custom MCU
+- **SNMP agent:** Minimal implementation — responds only to direct GET requests on configured OIDs; does not support WALK/BULK or System MIB queries
 
 ---
 
@@ -96,7 +104,6 @@ All sensors use `snmpcustom` (raw OID) or `xmlexe` sensor type in PRTG.
 
 ## Prerequisites
 
-- **Go 1.22+** (for building from source)
 - **snmp_exporter** binary or Docker image
 - Network reachability to `192.168.X.X:161/udp` (same L2/L3 network or routed)
 - Prometheus server (for scrape configuration)
@@ -132,7 +139,9 @@ docker run -d \
 
 ### snmp.yml
 
-The snmp.yml configuration file uses the `auths` + `modules` structure required by snmp_exporter v0.30.x:
+The snmp.yml configuration file uses the `auths` + `modules` structure required by snmp_exporter v0.30.x. All OIDs have been verified against the live device via PRTG at `https://mon.ibagher.ir`.
+
+The device only supports direct SNMP GET (not WALK/BULK), so the module uses `get` with explicit OID list instead of `walk`.
 
 ```yaml
 auths:
@@ -142,100 +151,70 @@ auths:
 
 modules:
   ns705:
-    walk:
-      # Walk the device's OID subtree to discover all available metrics.
-      # Replace with actual NS-705 OID once discovered via snmpwalk:
-      - 1.3.6.1.2.1.1           # System MIB (sysDescr, sysUpTime, etc.)
-      - 1.3.6.1.4.1.<enterprise>  # Enterprise-specific subtree (TBD)
-
+    get:
+    - 1.3.6.1.4.1.61.1.1.2.1.1.81
+    - 1.3.6.1.4.1.61.1.1.2.1.1.82
+    - 1.3.6.1.4.1.61.1.1.2.1.1.83
+    - 1.3.6.1.4.1.61.1.1.2.1.1.84
+    - 1.3.6.1.4.1.61.1.1.2.1.1.85
+    - 1.3.6.1.4.1.61.1.1.2.1.1.87
+    - 1.3.6.1.4.1.61.1.1.2.1.1.88
+    - 1.3.6.1.4.1.61.1.1.2.1.1.89
+    - 1.3.6.1.4.1.61.1.1.2.1.1.90
+    - 1.3.6.1.4.1.61.1.1.2.1.1.91
     metrics:
-      # --- System ---
-      - name: sysDescr
-        oid: 1.3.6.1.2.1.1.1.0
-        type: DisplayString
-        help: Device system description.
-
-      - name: sysUpTime
-        oid: 1.3.6.1.2.1.1.3.0
-        type: gauge
-        help: Device uptime in TimeTicks.
-
-      # --- Temperature Sensors (4 zones) ---
-      - name: envTemp1Rack1Front
-        oid: 1.3.6.1.4.1.<enterprise>.<temp1_oid>  # TBD
-        type: gauge
-        help: Temperature at Rack 1 Front in Celsius.
-
-      - name: envTemp2Rack2Rear
-        oid: 1.3.6.1.4.1.<enterprise>.<temp2_oid>  # TBD
-        type: gauge
-        help: Temperature at Rack 2 Rear in Celsius.
-
-      - name: envTemp3Rack3Rear
-        oid: 1.3.6.1.4.1.<enterprise>.<temp3_oid>  # TBD
-        type: gauge
-        help: Temperature at Rack 3 Rear in Celsius.
-
-      - name: envTemp4Rack5Front
-        oid: 1.3.6.1.4.1.<enterprise>.<temp4_oid>  # TBD
-        type: gauge
-        help: Temperature at Rack 5 Front in Celsius.
-
-      # --- THC (Temperature-Humidity Composite) ---
-      - name: envTHC
-        oid: 1.3.6.1.4.1.<enterprise>.<thc_oid>  # TBD
-        type: gauge
-        help: Composite Temperature-Humidity sensor value.
-
-      # --- Smoke Detector ---
-      - name: envSmokeStatus
-        oid: 1.3.6.1.4.1.<enterprise>.<smoke_oid>  # TBD
-        type: gauge
-        help: Smoke detector status. 0=no smoke, 1=smoke detected.
-        enum_values:
-          0: no_smoke
-          1: smoke_detected
-
-      # --- Power Inputs ---
-      - name: envPower1Status
-        oid: 1.3.6.1.4.1.<enterprise>.<power1_oid>  # TBD
-        type: gauge
-        help: Main power input status. 1=active, 0=inactive.
-        enum_values:
-          0: inactive
-          1: active
-
-      - name: envPower2GeneratorStatus
-        oid: 1.3.6.1.4.1.<enterprise>.<power2_oid>  # TBD
-        type: gauge
-        help: Generator power input status. 1=active, 0=inactive.
-        enum_values:
-          0: inactive
-          1: active
-
-    max_repetitions: 25
+    - name: envInputZone1
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.81
+      type: gauge
+      help: External sensor zone 1 status.
+    - name: envInputZone2
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.82
+      type: gauge
+      help: External sensor zone 2 status.
+    - name: envSmokeStatus
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.83
+      type: gauge
+      help: Smoke detector status. 0=no smoke, 1=smoke detected.
+      enum_values:
+        0: no_smoke
+        1: smoke_detected
+    - name: envPower1Status
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.84
+      type: gauge
+      help: Main power input status. 1=active, 0=inactive.
+      enum_values:
+        0: inactive
+        1: active
+    - name: envPower2GeneratorStatus
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.85
+      type: gauge
+      help: Generator power input status. 1=active, 0=inactive.
+      enum_values:
+        0: inactive
+        1: active
+    - name: envTemp1Rack1Front
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.87
+      type: gauge
+      help: Temperature at Rack 1 Front in Celsius.
+    - name: envTemp2Rack2Rear
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.88
+      type: gauge
+      help: Temperature at Rack 2 Rear in Celsius.
+    - name: envTemp3Rack3Rear
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.89
+      type: gauge
+      help: Temperature at Rack 3 Rear in Celsius.
+    - name: envTemp4Rack5Front
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.90
+      type: gauge
+      help: Temperature at Rack 5 Front in Celsius.
+    - name: envTHC
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.91
+      type: gauge
+      help: Composite Temperature-Humidity sensor value.
     retries: 3
     timeout: 5s
 ```
-
-> **Note:** The NS-705 uses vendor-specific enterprise OIDs under `1.3.6.1.4.1.<enterprise>` for its environmental sensors. The exact OIDs must be discovered by running `snmpwalk` against the device from a host on the same network. See [Discovery](#discovery) below.
-
-### Discovery
-
-To discover the correct OIDs, run an SNMP walk from a host that can reach the device:
-
-```bash
-# Walk the entire device
-snmpwalk -v1 -c public 192.168.X.X
-
-# Or walk the enterprise subtree specifically
-snmpwalk -v1 -c public 192.168.X.X 1.3.6.1.4.1
-
-# Identify the enterprise OID (look for Pardik/NS-705 specific nodes)
-snmpwalk -v1 -c public 192.168.X.X 1.3.6.1.2.1.1.1.0
-```
-
-Once discovered, replace the `<enterprise>` and `<oid>` placeholders in `snmp.yml` with actual values.
 
 ### Running the Exporter
 
@@ -300,15 +279,21 @@ curl -s "http://127.0.0.1:9116/snmp?module=ns705&target=192.168.X.X&auth=ns705_v
 
 If you see `"Unknown auth"` error, make sure the `auth` parameter matches the name under `auths:` in snmp.yml (i.e., `ns705_v1`).
 
-### 4. Expected metrics prefix
+### 4. Expected metrics
 
 Once the device is reachable and OIDs are correct, you should see metrics like:
 
 ```
-envTemp1Rack1Front{instance="192.168.X.X"} 29
-envTemp2Rack2Rear{instance="192.168.X.X"} 32
+envTemp1Rack1Front{instance="192.168.X.X"} 28
+envTemp2Rack2Rear{instance="192.168.X.X"} 31
+envTemp3Rack3Rear{instance="192.168.X.X"} 32
+envTemp4Rack5Front{instance="192.168.X.X"} 25
+envTHC{instance="192.168.X.X"} 26
 envSmokeStatus{instance="192.168.X.X"} 0
 envPower1Status{instance="192.168.X.X"} 1
+envPower2GeneratorStatus{instance="192.168.X.X"} 0
+envInputZone1{instance="192.168.X.X"} 0
+envInputZone2{instance="192.168.X.X"} 0
 ```
 
 ---

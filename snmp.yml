@@ -4,18 +4,66 @@ auths:
     community: public
 modules:
   ns705:
-    walk:
-    - 1.3.6.1.2.1.1
-    - 1.3.6.1.4.1
+    get:
+    - 1.3.6.1.4.1.61.1.1.2.1.1.81
+    - 1.3.6.1.4.1.61.1.1.2.1.1.82
+    - 1.3.6.1.4.1.61.1.1.2.1.1.83
+    - 1.3.6.1.4.1.61.1.1.2.1.1.84
+    - 1.3.6.1.4.1.61.1.1.2.1.1.85
+    - 1.3.6.1.4.1.61.1.1.2.1.1.87
+    - 1.3.6.1.4.1.61.1.1.2.1.1.88
+    - 1.3.6.1.4.1.61.1.1.2.1.1.89
+    - 1.3.6.1.4.1.61.1.1.2.1.1.90
+    - 1.3.6.1.4.1.61.1.1.2.1.1.91
     metrics:
-    - name: sysDescr
-      oid: 1.3.6.1.2.1.1.1.0
-      type: DisplayString
-      help: Device system description.
-    - name: sysUpTime
-      oid: 1.3.6.1.2.1.1.3.0
+    - name: envInputZone1
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.81
       type: gauge
-      help: Device uptime in TimeTicks.
-    max_repetitions: 25
+      help: External sensor zone 1 status.
+    - name: envInputZone2
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.82
+      type: gauge
+      help: External sensor zone 2 status.
+    - name: envSmokeStatus
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.83
+      type: gauge
+      help: Smoke detector status. 0=no smoke, 1=smoke detected.
+      enum_values:
+        0: no_smoke
+        1: smoke_detected
+    - name: envPower1Status
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.84
+      type: gauge
+      help: Main power input status. 1=active, 0=inactive.
+      enum_values:
+        0: inactive
+        1: active
+    - name: envPower2GeneratorStatus
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.85
+      type: gauge
+      help: Generator power input status. 1=active, 0=inactive.
+      enum_values:
+        0: inactive
+        1: active
+    - name: envTemp1Rack1Front
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.87
+      type: gauge
+      help: Temperature at Rack 1 Front in Celsius.
+    - name: envTemp2Rack2Rear
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.88
+      type: gauge
+      help: Temperature at Rack 2 Rear in Celsius.
+    - name: envTemp3Rack3Rear
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.89
+      type: gauge
+      help: Temperature at Rack 3 Rear in Celsius.
+    - name: envTemp4Rack5Front
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.90
+      type: gauge
+      help: Temperature at Rack 5 Front in Celsius.
+    - name: envTHC
+      oid: 1.3.6.1.4.1.61.1.1.2.1.1.91
+      type: gauge
+      help: Composite Temperature-Humidity sensor value.
     retries: 3
     timeout: 5s
